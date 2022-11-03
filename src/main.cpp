@@ -1,138 +1,112 @@
-// #include <Arduino.h>
-
-// extern void test_sim800_module(void);
-// extern void send_SMS(void);
-// extern void updateSerial(void);
-
-// void setup() {
-//   Serial.begin(115200);
-//   Serial2.begin(9600);
-//   delay(3000);
-//   test_sim800_module();
-//   send_SMS();
-// }
-// void loop() {
-//   updateSerial();
-// }
-// void test_sim800_module()
-// {
-//   Serial2.println("AT");
-//   updateSerial();
-//   Serial.println();
-//   Serial2.println("AT+CSQ");
-//   updateSerial();
-//   Serial2.println("AT+CCID");
-//   updateSerial();
-//   Serial2.println("AT+CREG?");
-//   updateSerial();
-//   Serial2.println("ATI");
-//   updateSerial();
-//   Serial2.println("AT+CBC");
-//   updateSerial();
-//   Serial.println(__FUNCTION__);
-// }
-// void updateSerial()
-// {
-//   delay(500);
-//   while (Serial.available())
-//   {
-//     Serial2.write(Serial.read());//Forward what Serial received to Software Serial Port
-//   }
-//   while (Serial2.available())
-//   {
-//     Serial.write(Serial2.read());//Forward what Software Serial received to Serial Port
-//   }
-// }
-// void send_SMS()
-// {
-//   Serial2.println("AT+CMGF=1"); // Configuring TEXT mode
-//   updateSerial();
-//   Serial2.println("AT+CMGS=\"1141800170\"");//change ZZ with country code and xxxxxxxxxxx with phone number to sms
-//   updateSerial();
-//   Serial2.print("Circuit Digest"); //text content
-//   updateSerial();
-// Serial.println();
-//   Serial.println("Message Sent");
-//   Serial2.write(26);
-// }
-
-#include <Arduino.h>
 #include <HardwareSerial.h>
+#include <TinyGPSPlus.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <WiFiMulti.h>
+#include <ArduinoJson.h>
 
-// HardwareSerial Serial2(2);
+
+TinyGPSPlus gps;
+
+const char* ssid = "motog60";
+const char* password = "paco12345";
+WiFiMulti wifiMulti;
+
+//Your Domain name with URL path or IP address with path
+const char* serverName = "http://airtagnt-server-production.up.railway.app";
 
 
-void updateSerial()
-{
-  delay(500);
-  while (Serial.available()) 
-  {
-    Serial2.write(Serial.read()); //Forward what Serial received to Software Serial Port
-  }
-  Serial.println("Between whiles");
-  while(Serial2.available()) 
-  {
-    Serial.println(Serial2.read());//Forward what Software Serial received to Serial Port
+int i;
+
+void sendRequest(double lat, double longitude){
+   Serial.println("Posting JSON data to server...");
+  // Block until we are able to connect to the WiFi access point
+  if (wifiMulti.run() == WL_CONNECTED) {
+
+    HTTPClient http;
+
+    http.begin("https://airtagnt-server-production.up.railway.app/location");
+    http.addHeader("Content-Type", "application/json");
+
+    StaticJsonDocument<200> doc;
+    // Add values in the document
+    //
+    doc["lat"] = std::to_string(lat);
+    doc["long"] = std::to_string(longitude);
+
+
+    String requestBody;
+    serializeJson(doc, requestBody);
+
+     Serial.println(requestBody);
+    int httpResponseCode = http.POST(requestBody);
+
+    if(httpResponseCode>0){
+
+      String response = http.getString();
+
+      Serial.println(httpResponseCode);
+      Serial.println(response);
+
+    }
+
+
   }
 }
 
-int incomingByte = 0;
-int i = 1;
-void setup()
-{
-  
-  Serial.begin(9600);
-  
- 
-  Serial2.begin(9600, SERIAL_8N1, 16, 17);
-
-  Serial.println("Initializing..."); 
-  delay(1000);
-
-  // Serial2.write("AT");
-  // updateSerial();
-  // Serial.println("sent AT");
-
-  // Serial2.write("AT+CMGF=1"); 
-  // updateSerial();
-  // Serial2.write("AT+CMGS=\"+541141800170\""); // enter your phone number here (prefix country code)
-  // updateSerial();
-  // Serial2.write("Hello from Superb Tech"); // enter your message here
-  // updateSerial();
-  // Serial2.write(26);
-  Serial2.write("AT");
-  delay(5000);
-  Serial.println("after delay");
-  // while(Serial2.available()) 
-  // {
-  //   Serial.println("entered");
-  //   Serial.print(Serial2.read());//Forward what Software Serial received to Serial Port
-  // }
-  // Serial.println("Sali del while");
-}
-
-void loop()
-{
-  Serial2.write("AT");
-  Serial.println("mando un AT");
-  // while (Serial.available()) 
-  // {
-  //   Serial2.write(Serial.read());//Forward what Serial received to Software Serial Port
-  // }
-  Serial.println(Serial2.available());
-  delay(5000);
-  if (Serial2.available() > 0) {
-    // read the incoming byte:
-    incomingByte = Serial.read();
-    Serial.println("Loopeando " + String(i));
+void displayInfo() {
     i++;
-
-    // say what you got:
-    Serial.print("I received: ");
-    Serial.println(incomingByte, DEC);
+  Serial.print(F("\nLocation: "));
+  if (gps.location.isValid()){
+    Serial.print(gps.location.lat(), 6);
+    Serial.print(F(","));
+    Serial.print(gps.location.lng(), 6);
+    if(i % 20 == 0) sendRequest(gps.location.lat(), gps.location.lng());
   }
+  else
+  {
+    Serial.print(F("INVALID"));
+  }
+}
 
-  delay(7000);
-  Serial.println("hola");
+void updateSerial(){
+  delay(500);
+  while (Serial.available())  {
+    Serial2.write(Serial.read());//Forward what Serial received to Software Serial Port
+  }
+  while (Serial2.available())  {
+    Serial.write(Serial2.read());//Forward what Software Serial received to Serial Port
+  }
+// while (Serial2.available())  {
+//     gps.encode(Serial2.read());//Forward what Software Serial received to Serial Port
+//     displayInfo();
+//   }
+}
 
+void setup() {
+  Serial.begin(115200);
+  Serial2.begin(9600);
+
+  i = 0;
+delay(4000);
+  wifiMulti.addAP(ssid, password);
+
+
+}
+
+void loop() {
+    // updateSerial();
+    // delay(10000);
+
+    //updateSerial();
+    if(Serial2.available() > 0){
+    //delay(5000);
+    if (gps.encode(Serial2.read()))
+      displayInfo();
+    }
+  if (millis() > 5000 && gps.charsProcessed() < 10)
+  {
+    Serial.println(F("No GPS detected: check wiring."));
+    while (true);
+  }
 }
