@@ -54,7 +54,6 @@ void sendRequest(double lat, double longitude){
   }
 }
 
-
 void displayInfo() {
     i++;
   Serial.print(F("\nLocation: "));
@@ -83,8 +82,6 @@ void updateSerial(){
 //     displayInfo();
 //   }
 }
-
-
 
 void setup() {
   Serial.begin(115200);
