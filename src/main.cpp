@@ -8,8 +8,8 @@
 
 TinyGPSPlus gps;
 
-const char* ssid = "motog60";
-const char* password = "paco12345";
+const char* ssid = "encigol";
+const char* password = "encigol1";
 WiFiMulti wifiMulti;
 
 //Your Domain name with URL path or IP address with path
@@ -18,7 +18,7 @@ const char* serverName = "http://airtagnt-server-production.up.railway.app";
 
 int i;
 
-void sendRequest(double lat, double longitude){
+void sendRequest(double lat, double longitude, uint32_t satellites, double hdop){
    Serial.println("Posting JSON data to server...");
   // Block until we are able to connect to the WiFi access point
   if (wifiMulti.run() == WL_CONNECTED) {
@@ -33,6 +33,8 @@ void sendRequest(double lat, double longitude){
     //
     doc["lat"] = std::to_string(lat);
     doc["long"] = std::to_string(longitude);
+    doc["satellites"] = std::to_string(satellites);
+    doc["hdop"] = std::to_string(hdop);
 
 
     String requestBody;
@@ -61,7 +63,7 @@ void displayInfo() {
     Serial.print(gps.location.lat(), 6);
     Serial.print(F(","));
     Serial.print(gps.location.lng(), 6);
-    if(i % 20 == 0) sendRequest(gps.location.lat(), gps.location.lng());
+    if(i % 20 == 0) sendRequest(gps.location.lat(), gps.location.lng(), gps.satellites.value(), gps.hdop.value());
   }
   else
   {
